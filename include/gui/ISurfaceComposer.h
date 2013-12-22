@@ -29,6 +29,7 @@
 
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/ISurfaceComposerClient.h>
+#include <gui/ISurfaceClient.h>
 
 namespace android {
 // ----------------------------------------------------------------------------
@@ -127,6 +128,10 @@ public:
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ) = 0;
 #endif
+	virtual int      setDisplayProp(int cmd,int param0,int param1,int param2) = 0;
+    virtual int      getDisplayProp(int cmd,int param0,int param1) = 0;
+    virtual void     registerClient(const sp<ISurfaceClient>& client) = 0;
+	virtual void     unregisterClient() = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -151,7 +156,14 @@ public:
         UNBLANK,
         GET_DISPLAY_INFO,
         CONNECT_DISPLAY,
+<<<<<<< HEAD
         CAPTURE_SCREEN,
+=======
+        SET_DISPLAYPROP,
+        GET_DISPLAYPROP,
+        REGISTER_CLIENT,
+        UNREGISTER_CLIENT,
+>>>>>>> 288222f... Add allwinner Display manager service
     };
 
     virtual status_t onTransact(uint32_t code, const Parcel& data,

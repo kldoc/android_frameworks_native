@@ -304,6 +304,7 @@ HWComposer::HWComposer(
                 mNumDisplays = 1;
             }
         } else {
+            ALOGI("needVSyncThread = true");
             needVSyncThread = true;
             mNumDisplays = 1;
         }
@@ -363,6 +364,7 @@ void HWComposer::loadHwcModule()
 {
     hw_module_t const* module;
 
+    ALOGI("Load hwcomposer module");
     if (hw_get_module(HWC_HARDWARE_MODULE_ID, &module) != 0) {
         ALOGE("%s module not found", HWC_HARDWARE_MODULE_ID);
         return;
@@ -394,6 +396,7 @@ int HWComposer::loadFbHalModule()
 
     int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
     if (err != 0) {
+    ALOGI("Load framebuffer hal module");
         ALOGE("%s module not found", GRALLOC_HARDWARE_MODULE_ID);
         return err;
     }
@@ -778,10 +781,14 @@ status_t HWComposer::prepare() {
                         //ALOGD("prepare: %d, type=%d, handle=%p",
                         //        i, l.compositionType, l.handle);
 
-                        if ((i == DisplayDevice::DISPLAY_PRIMARY) &&
-                                    l.flags & HWC_SKIP_LAYER) {
-                            l.compositionType = HWC_FRAMEBUFFER;
-                        }
+//                        if ((i == DisplayDevice::DISPLAY_PRIMARY) &&
+//                                    l.flags & HWC_SKIP_LAYER) {
+//                            l.compositionType = HWC_FRAMEBUFFER;
+//                        }
+
+                        // if (l.flags & HWC_SKIP_LAYER) {
+                        //     l.compositionType = HWC_FRAMEBUFFER;
+                        // }
                         if (l.compositionType == HWC_FRAMEBUFFER) {
                             disp.hasFbComp = true;
                         }
@@ -989,6 +996,29 @@ sp<Fence> HWComposer::getLastRetireFence(int32_t id) {
     if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id))
         return Fence::NO_FENCE;
     return mDisplayData[id].lastRetireFence;
+int HWComposer::setParameter(uint32_t cmd,uint32_t value)
+{
+    if (mHwc) {
+        int err;
+        if ( (cmd == HWC_LAYER_SETTOP) || (cmd == HWC_LAYER_SETBOTTOM) ) {
+            err = mHwc->setlayerorder(mHwc, mNumDisplays, mLists, cmd);
+        } else {
+            err = mHwc->setparameter(mHwc, cmd,value);
+        }
+        //int err = mHwc->setparameter(mHwc, cmd,value);
+
+        return (status_t)err;
+    }
+    return NO_ERROR;
+}
+
+uint32_t HWComposer::getParameter(uint32_t cmd)
+{
+    if (mHwc) {
+        return mHwc->getparameter(mHwc, cmd);
+    }
+
+    return NO_ERROR;
 }
 
 /*
@@ -1109,8 +1139,10 @@ public:
             visibleRegion.numRects = 0;
             visibleRegion.rects = NULL;
         }
-
     }
+    virtual void setFormat(uint32_t format) {
+    }
+
 };
 // #endif // !HWC_REMOVE_DEPRECATED_VERSIONS
 
@@ -1218,6 +1250,10 @@ public:
         }
 
         getLayer()->acquireFenceFd = -1;
+    }
+
+    virtual void setFormat(uint32_t format) {
+        getLayer()->format = format;
     }
 };
 

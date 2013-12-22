@@ -21,6 +21,7 @@
 #include <sys/types.h>
 
 #include <hardware/hwcomposer_defs.h>
+#include <hardware/hwcomposer.h>
 
 #include <ui/Fence.h>
 
@@ -142,6 +143,8 @@ public:
     // For physical displays, it is no longer being displayed. For virtual
     // displays, writes to the output buffer are complete.
     sp<Fence> getLastRetireFence(int32_t id);
+    int setParameter(uint32_t cmd,uint32_t value);
+    uint32_t getParameter(uint32_t cmd);
 
     /*
      * Interface to hardware composer's layers functionality.
@@ -169,6 +172,7 @@ public:
         virtual void setAcquireFenceFd(int fenceFd) = 0;
         virtual void setPlaneAlpha(uint8_t alpha) = 0;
         virtual void onDisplayed() = 0;
+        virtual void setFormat(uint32_t format) = 0;
     };
 
     /*

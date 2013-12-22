@@ -42,6 +42,12 @@ public:
     // After calling the superclass connect(), set or clear synchronous
     // mode appropriately for the specified API.
     virtual status_t connect(int api, QueueBufferOutput* output);
+
+    bool     usehwinit;
+    wp<Layer>  mLayer;
+    virtual status_t disconnect(int api);
+    virtual int      setParameter(uint32_t cmd,uint32_t value);
+    virtual uint32_t getParameter(uint32_t cmd);
 };
 
 // ---------------------------------------------------------------------------

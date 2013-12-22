@@ -32,6 +32,8 @@
 
 #include <gui/CpuConsumer.h>
 #include <gui/SurfaceControl.h>
+#include <gui/Surface.h>
+#include <gui/ISurfaceClient.h>
 
 namespace android {
 
@@ -156,6 +158,12 @@ public:
             uint32_t orientation,
             const Rect& layerStackRect,
             const Rect& displayRect);
+
+    static int  setDisplayProp(int cmd,int param0,int param1,int param2);
+    static int  getDisplayProp(int cmd,int param0,int param1);
+
+    static void		registerSurfaceClient(const sp<ISurfaceClient>& client);
+    static void		unregisterSurfaceClient();
 
 private:
     virtual void onFirstRef();

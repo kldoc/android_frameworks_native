@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "DisplayDevice"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -97,6 +99,41 @@ DisplayDevice::DisplayDevice(
 {
     mNativeWindow = new Surface(mDisplaySurface->getIGraphicBufferProducer());
 #ifndef EGL_NEEDS_FNW
+    init(config);
+    ALOGI("Create display dispather");
+    mDisplayDispatcher = new DisplayDispatcher(mFlinger);
+}
+
+DisplayDevice::~DisplayDevice() {
+    if (mSurface != EGL_NO_SURFACE) {
+        eglDestroySurface(mDisplay, mSurface);
+        mSurface = EGL_NO_SURFACE;
+    }
+}
+
+bool DisplayDevice::isValid() const {
+    return mFlinger != NULL;
+}
+
+int DisplayDevice::getWidth() const {
+    return mDisplayWidth;
+}
+
+int DisplayDevice::getHeight() const {
+    return mDisplayHeight;
+}
+
+PixelFormat DisplayDevice::getFormat() const {
+    return mFormat;
+}
+
+EGLSurface DisplayDevice::getEGLSurface() const {
+    return mSurface;
+}
+
+void DisplayDevice::init(EGLConfig config)
+{
+#ifndef BOARD_EGL_NEEDS_LEGACY_FB
     ANativeWindow* const window = mNativeWindow.get();
 #else
     ANativeWindow* const window = new FramebufferNativeWindow();
@@ -140,6 +177,7 @@ DisplayDevice::DisplayDevice(
             break;
     }
 
+    ALOGI("display type = %u", mType);
     // initialize the display orientation transform.
     setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
 }
@@ -232,8 +270,6 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
             } else {
                 ALOGE("eglSwapBuffers(%p, %p) failed with 0x%08x",
                         mDisplay, mSurface, error);
-            }
-        }
     }
 
     status_t result = mDisplaySurface->advanceFrame();
@@ -244,6 +280,12 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
 }
 
 void DisplayDevice::onSwapBuffersCompleted(HWComposer& hwc) const {
+    if (mDisplayDispatcher != NULL)
+    {
+        ALOGI("dispatcher swap buffer");
+        mDisplayDispatcher->startSwapBuffer( 0 );
+    }
+
     if (hwc.initCheck() == NO_ERROR) {
         mDisplaySurface->onFrameCommitted();
     }
@@ -382,7 +424,11 @@ void DisplayDevice::setProjection(int orientation,
         const Rect& newViewport, const Rect& newFrame) {
     Rect viewport(newViewport);
     Rect frame(newFrame);
-
+    mOrientation = orientation;
+    mViewport = viewport;
+    mFrame = newFrame;
+    char property[PROPERTY_VALUE_MAX];
+    
     const int w = mDisplayWidth;
     const int h = mDisplayHeight;
 
@@ -398,7 +444,35 @@ void DisplayDevice::setProjection(int orientation,
 
         if (additionalRot == 90 || additionalRot == 270)
             frame = Rect(h, w);
-        else
+        mOrientation = (orientation + 3) % 4;
+        if( (mViewport.right < 0) && (mViewport.bottom < 0) && (mFrame.right < 0) && (mFrame.bottom < 0))
+                {
+                    mViewport.right = mDisplayHeight;
+                    mViewport.bottom = mDisplayWidth;
+                    mFrame.right = mDisplayHeight;
+                    mFrame.bottom = mDisplayWidth;
+                }
+        
+        }
+    }
+
+    updateGeometryTransform();
+}
+
+void DisplayDevice::updateGeometryTransform() {
+    int w = mDisplayWidth;
+    int h = mDisplayHeight;
+    Transform TL, TP, R, S;
+    if (DisplayDevice::orientationToTransfrom(
+            mOrientation, w, h, &R) == NO_ERROR) {
+        dirtyRegion.set(bounds());
+
+        Rect viewport(mViewport);
+        Rect frame(mFrame);
+
+        if (!frame.isValid()) {
+            // the destination frame can be invalid if it has never been set,
+            // in that case we assume the whole display frame.
             frame = Rect(w, h);
     }
 
@@ -478,4 +552,26 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
     String8 surfaceDump;
     mDisplaySurface->dump(surfaceDump);
     result.append(surfaceDump);
+}
+
+int DisplayDevice::setDispProp(int cmd,int param0,int param1,int param2) const
+{
+    if (mDisplayDispatcher != NULL)
+    {
+        ALOGD("setDispProp: cmd = %d, param0 = %d, param1 = %d, param2 = %d", cmd, param0, param1, param2);
+        return mDisplayDispatcher->setDispProp(cmd,param0,param1,param2);
+    }
+
+    return  0;
+}
+
+int DisplayDevice::getDispProp(int cmd,int param0,int param1) const
+{
+    if (mDisplayDispatcher != NULL)
+    {
+        ALOGD("getDispProp: cmd = %d, param0 = %d, param1 = %d", cmd, param0, param1);
+        return mDisplayDispatcher->getDispProp(cmd,param0,param1);
+    }
+
+    return  0;
 }
