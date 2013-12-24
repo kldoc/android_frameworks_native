@@ -496,6 +496,7 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
     }
     else
     {
+<<<<<<< HEAD
     if (CC_UNLIKELY(mActiveBuffer == 0)) {
         // the texture has not been created yet, this Layer has
         // in fact never been drawn into. This happens frequently with
@@ -549,6 +550,80 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
     if (!blackOutLayer || (canAllowGPU)) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
+=======
+        if (CC_UNLIKELY(mActiveBuffer == 0)) {
+	        // the texture has not been created yet, this Layer has
+	        // in fact never been drawn into. This happens frequently with
+	        // SurfaceView because the WindowManager can't know when the client
+	        // has drawn the first time.
+
+	        // If there is nothing under us, we paint the screen in black, otherwise
+	        // we just skip this update.
+
+	        // figure out if there is something below us
+	        Region under;
+	        const SurfaceFlinger::LayerVector& drawingLayers(
+	                mFlinger->mDrawingState.layersSortedByZ);
+	        const size_t count = drawingLayers.size();
+	        for (size_t i=0 ; i<count ; ++i) {
+	            const sp<LayerBase>& layer(drawingLayers[i]);
+	            if (layer.get() == static_cast<LayerBase const*>(this))
+	                break;
+	            under.orSelf( hw->getTransform().transform(layer->visibleRegion) );
+	        }
+	        // if not everything below us is covered, we plug the holes!
+	        Region holes(clip.subtract(under));
+	        if (!holes.isEmpty()) {
+	            clearWithOpenGL(hw, holes, 0, 0, 0, 1);
+	        }
+	        return;
+	    }
+
+	    status_t err = mSurfaceTexture->doGLFenceWait();
+	    if (err != OK) {
+	        ALOGE("onDraw: failed waiting for fence: %d", err);
+	        // Go ahead and draw the buffer anyway; no matter what we do the screen
+	        // is probably going to have something visibly wrong.
+	    }
+
+	    bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
+
+	    if (!blackOutLayer) {
+	        // TODO: we could be more subtle with isFixedSize()
+	        const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
+
+	        // Query the texture matrix given our current filtering mode.
+	        float textureMatrix[16];
+	        mSurfaceTexture->setFilteringEnabled(useFiltering);
+	        mSurfaceTexture->getTransformMatrix(textureMatrix);
+
+	        // Set things up for texturing.
+	        glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureName);
+	        GLenum filter = GL_NEAREST;
+	        if (useFiltering) {
+	            filter = GL_LINEAR;
+	        }
+
+	        if(hw->setDispProp(DISPLAY_CMD_GETDISPLAYMODE,0,0,0) == DISPLAY_MODE_SINGLE_VAR_GPU)
+	        {
+	            filter = GL_LINEAR;
+	        }
+	        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
+	        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
+	        glMatrixMode(GL_TEXTURE);
+	        glLoadMatrixf(textureMatrix);
+	        glMatrixMode(GL_MODELVIEW);
+	        glDisable(GL_TEXTURE_2D);
+	        glEnable(GL_TEXTURE_EXTERNAL_OES);
+	    } else {
+	        glBindTexture(GL_TEXTURE_2D, mFlinger->getProtectedTexName());
+	        glMatrixMode(GL_TEXTURE);
+	        glLoadIdentity();
+	        glMatrixMode(GL_MODELVIEW);
+	        glDisable(GL_TEXTURE_EXTERNAL_OES);
+	        glEnable(GL_TEXTURE_2D);
+	    }
+>>>>>>> 234c62d... Fix VSync problem
 
         // Query the texture matrix given our current filtering mode.
         float textureMatrix[16];

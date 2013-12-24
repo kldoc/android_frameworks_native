@@ -32,6 +32,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libsync \
 	libutils \
 	liblog
+	libhardware_legacy \
+	libutils
 
 ifneq ($(BOARD_FRAMEBUFFER_FORCE_FORMAT),)
 LOCAL_CFLAGS += -DFRAMEBUFFER_FORCE_FORMAT=$(BOARD_FRAMEBUFFER_FORCE_FORMAT)
